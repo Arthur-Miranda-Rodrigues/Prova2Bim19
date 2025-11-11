@@ -1,0 +1,56 @@
+name: Criar Pacote ZIP de Release
+on:
+ workflow_dispatch:
+    inputs:
+       tag_name:
+         description: 'Nome da tag para o release (ex: 1.0.0)'
+         required: true
+         default: '1.0.0'
+       release_name:
+         description: 'Nome do release (ex: Versão 1.0.0)'
+         required: true
+         default: 'v1.0.0'
+       pre_release:
+         description: 'Indica se é um pre-release (true/false)'
+         required: false
+         default: false
+         type: boolean
+permissions:
+      contents: write
+jobs:
+  create_release_package_zip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v3
+
+      - name: Create Release Package ZIP
+        id: create_zip
+        run: |
+           TAG_NAME="${{ github.event.inputs.tag_name }}"
+           RELEASE_NAME="${{ github.event.inputs.release_name }}"
+           PRE_RELEASE="${{ github.event.inputs.pre_release }}"
+
+           ZIP_FILE="release-package-${TAG_NAME}.zip"
+           zip -r $ZIP_FILE .
+
+           echo "ZIP_FILE=$ZIP_FILE" >> $GITHUB_OUTPUT
+
+      - name: Criar Release no GitHub
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.event.inputs.tag_name }}
+          release_name: ${{ github.event.inputs.release_name }}
+          draft: false
+          prerelease: ${{ github.event.inputs.pre_release }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload do Pacote ZIP para o Release
+        uses: softprops/action-gh-release@v1
+        with:
+            tag_name: ${{ github.event.inputs.tag_name }}
+            files: ${{ steps.create_zip.outputs.ZIP_FILE }}
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
